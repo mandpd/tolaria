@@ -59,18 +59,18 @@ describe('pathLabel', () => {
 describe('buildGraphData', () => {
   it('creates nodes for all entries', () => {
     const entries = [
-      makeEntry({ path: 'a.md', title: 'A' }),
-      makeEntry({ path: 'b.md', title: 'B' }),
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A' }),
+      makeEntry({ path: 'b.md', filename: 'b.md', title: 'B' }),
     ]
     const { nodes } = buildGraphData(entries)
     expect(nodes).toHaveLength(2)
     expect(nodes.map((n) => n.id)).toEqual(['a.md', 'b.md'])
   })
 
-  it('creates edges from outgoingLinks', () => {
+  it('creates edges from outgoingLinks matched by filename stem', () => {
     const entries = [
-      makeEntry({ path: 'a.md', title: 'A', outgoingLinks: ['b.md'] }),
-      makeEntry({ path: 'b.md', title: 'B' }),
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', outgoingLinks: ['b'] }),
+      makeEntry({ path: 'b.md', filename: 'b.md', title: 'B' }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(1)
@@ -81,10 +81,24 @@ describe('buildGraphData', () => {
     })
   })
 
-  it('creates edges from relatedTo', () => {
+  it('creates edges from outgoingLinks matched by title', () => {
     const entries = [
-      makeEntry({ path: 'a.md', title: 'A', relatedTo: ['c.md'] }),
-      makeEntry({ path: 'c.md', title: 'C' }),
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'Note A', outgoingLinks: ['Note B'] }),
+      makeEntry({ path: 'b.md', filename: 'b.md', title: 'Note B' }),
+    ]
+    const { edges } = buildGraphData(entries)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]).toMatchObject({
+      source: 'a.md',
+      target: 'b.md',
+      kind: 'wikilink',
+    })
+  })
+
+  it('creates edges from relatedTo with wikilink refs', () => {
+    const entries = [
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', relatedTo: ['[[c]]'] }),
+      makeEntry({ path: 'c.md', filename: 'c.md', title: 'C' }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(1)
@@ -99,10 +113,11 @@ describe('buildGraphData', () => {
     const entries = [
       makeEntry({
         path: 'a.md',
+        filename: 'a.md',
         title: 'A',
-        relationships: { parent: ['d.md'] },
+        relationships: { parent: ['[[d]]'] },
       }),
-      makeEntry({ path: 'd.md', title: 'D' }),
+      makeEntry({ path: 'd.md', filename: 'd.md', title: 'D' }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(1)
@@ -113,25 +128,34 @@ describe('buildGraphData', () => {
     })
   })
 
-  it('filters edges to targets not in the entry set', () => {
+  it('filters edges to targets that cannot be resolved', () => {
     const entries = [
-      makeEntry({ path: 'a.md', title: 'A', outgoingLinks: ['missing.md'] }),
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', outgoingLinks: ['missing'] }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(0)
   })
 
-  it('deduplicates edges', () => {
+  it('deduplicates edges with the same source and target', () => {
     const entries = [
       makeEntry({
         path: 'a.md',
+        filename: 'a.md',
         title: 'A',
-        outgoingLinks: ['b.md', 'b.md'],
+        outgoingLinks: ['b', 'b'],
       }),
-      makeEntry({ path: 'b.md', title: 'B' }),
+      makeEntry({ path: 'b.md', filename: 'b.md', title: 'B' }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(1)
+  })
+
+  it('skips self-referential links', () => {
+    const entries = [
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', outgoingLinks: ['a'] }),
+    ]
+    const { edges } = buildGraphData(entries)
+    expect(edges).toHaveLength(0)
   })
 
   it('handles empty entry list', () => {
@@ -142,8 +166,8 @@ describe('buildGraphData', () => {
 
   it('handles bidirectional links', () => {
     const entries = [
-      makeEntry({ path: 'a.md', title: 'A', outgoingLinks: ['b.md'] }),
-      makeEntry({ path: 'b.md', title: 'B', outgoingLinks: ['a.md'] }),
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', outgoingLinks: ['b'] }),
+      makeEntry({ path: 'b.md', filename: 'b.md', title: 'B', outgoingLinks: ['a'] }),
     ]
     const { edges } = buildGraphData(entries)
     expect(edges).toHaveLength(2)
@@ -153,6 +177,7 @@ describe('buildGraphData', () => {
     const entries = [
       makeEntry({
         path: 'a.md',
+        filename: 'a.md',
         title: 'Note A',
         isA: 'Person',
         icon: 'user',

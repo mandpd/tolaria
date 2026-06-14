@@ -1,4 +1,5 @@
 import type { VaultEntry } from '../types'
+import { resolveEntry, wikilinkTarget } from './wikilink'
 
 export interface GraphNode {
   id: string
@@ -23,10 +24,10 @@ export interface GraphData {
 
 /**
  * Build a graph from vault entries: files become nodes, wikilinks and
- * frontmatter relationships become edges.
+ * frontmatter relationships become edges. Uses the app's canonical
+ * wikilink resolver to match targets against entries.
  */
 export function buildGraphData(entries: VaultEntry[]): GraphData {
-  const pathSet = new Set(entries.map((e) => e.path))
   const nodes: GraphNode[] = []
   const edgeMap = new Map<string, GraphEdge>()
 
@@ -40,29 +41,32 @@ export function buildGraphData(entries: VaultEntry[]): GraphData {
       color: entry.color,
     })
 
-    // Wikilinks (outgoingLinks)
+    // Wikilinks (outgoingLinks) — already plain targets, no [[ ]] wrapping
     for (const target of entry.outgoingLinks) {
-      if (!pathSet.has(target)) continue
-      const edgeId = `${entry.path}::wikilink::${target}`
+      const resolved = resolveEntry(entries, target, entry)
+      if (!resolved || resolved.path === entry.path) continue
+      const edgeId = `${entry.path}::wikilink::${resolved.path}`
       if (!edgeMap.has(edgeId)) {
         edgeMap.set(edgeId, {
           id: edgeId,
           source: entry.path,
-          target,
+          target: resolved.path,
           kind: 'wikilink',
         })
       }
     }
 
-    // Frontmatter relates-to
-    for (const target of entry.relatedTo) {
-      if (!pathSet.has(target)) continue
-      const edgeId = `${entry.path}::relates-to::${target}`
+    // Frontmatter relates-to — targets may be wikilink refs [[target]] or plain text
+    for (const ref of entry.relatedTo) {
+      const target = wikilinkTarget(ref)
+      const resolved = resolveEntry(entries, target, entry)
+      if (!resolved || resolved.path === entry.path) continue
+      const edgeId = `${entry.path}::relates-to::${resolved.path}`
       if (!edgeMap.has(edgeId)) {
         edgeMap.set(edgeId, {
           id: edgeId,
           source: entry.path,
-          target,
+          target: resolved.path,
           kind: 'relates-to',
         })
       }
@@ -70,14 +74,16 @@ export function buildGraphData(entries: VaultEntry[]): GraphData {
 
     // Generic relationship fields (any frontmatter key with wikilinks)
     for (const [field, targets] of Object.entries(entry.relationships)) {
-      for (const target of targets) {
-        if (!pathSet.has(target)) continue
-        const edgeId = `${entry.path}::${field}::${target}`
+      for (const ref of targets) {
+        const target = wikilinkTarget(ref)
+        const resolved = resolveEntry(entries, target, entry)
+        if (!resolved || resolved.path === entry.path) continue
+        const edgeId = `${entry.path}::${field}::${resolved.path}`
         if (!edgeMap.has(edgeId)) {
           edgeMap.set(edgeId, {
             id: edgeId,
             source: entry.path,
-            target,
+            target: resolved.path,
             kind: 'relationship',
           })
         }
