@@ -72,6 +72,22 @@ export function buildGraphData(entries: VaultEntry[]): GraphData {
       }
     }
 
+    // Frontmatter belongs-to — targets may be wikilink refs [[target]] or plain text
+    for (const ref of entry.belongsTo) {
+      const target = wikilinkTarget(ref)
+      const resolved = resolveEntry(entries, target, entry)
+      if (!resolved || resolved.path === entry.path) continue
+      const edgeId = `${entry.path}::belongs-to::${resolved.path}`
+      if (!edgeMap.has(edgeId)) {
+        edgeMap.set(edgeId, {
+          id: edgeId,
+          source: entry.path,
+          target: resolved.path,
+          kind: 'relates-to',
+        })
+      }
+    }
+
     // Generic relationship fields (any frontmatter key with wikilinks)
     for (const [field, targets] of Object.entries(entry.relationships)) {
       for (const ref of targets) {

@@ -158,6 +158,20 @@ describe('buildGraphData', () => {
     expect(edges).toHaveLength(0)
   })
 
+  it('creates edges from belongsTo with wikilink refs', () => {
+    const entries = [
+      makeEntry({ path: 'a.md', filename: 'a.md', title: 'A', belongsTo: ['[[parent]]'] }),
+      makeEntry({ path: 'parent.md', filename: 'parent.md', title: 'Parent' }),
+    ]
+    const { edges } = buildGraphData(entries)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]).toMatchObject({
+      source: 'a.md',
+      target: 'parent.md',
+      kind: 'relates-to',
+    })
+  })
+
   it('handles empty entry list', () => {
     const { nodes, edges } = buildGraphData([])
     expect(nodes).toHaveLength(0)
