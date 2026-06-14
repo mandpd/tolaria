@@ -458,6 +458,8 @@
   "sidebar.nav.inbox": "Inbox",
   "sidebar.nav.allNotes": "All Notes",
   "sidebar.nav.archive": "Archive",
+  "sidebar.nav.graph": "Graph",
+  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here.",
   "sidebar.group.favorites": "FAVORITES",
   "sidebar.group.views": "VIEWS",
   "sidebar.group.types": "TYPES",

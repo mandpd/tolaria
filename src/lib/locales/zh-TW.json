@@ -814,5 +814,7 @@
   "locale.beLatn": "白俄羅斯語（拉丁語）",
   "locale.idID": "印尼",
   "locale.ukUA": "烏克蘭語",
-  "locale.svSE": "瑞典語"
+  "locale.svSE": "瑞典語",
+  "sidebar.nav.graph": "Graph",
+  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here."
 }

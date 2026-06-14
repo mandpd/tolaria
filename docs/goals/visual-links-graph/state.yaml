@@ -1,0 +1,197 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Visual Links Graph"
+  slug: "visual-links-graph"
+  kind: specific
+  tranche: "Research the best TypeScript graph visualization library for Tauri/React, then implement a complete interactive graph view accessible from the Tolaria side menu."
+  status: active
+  oracle:
+    signal: "A working interactive graph view in the Tolaria app, launched from the side menu, that displays vault files as nodes connected by wikilink and relates-to edges, supporting pan, zoom, and click-to-navigate."
+    cadence: "after each Worker package and at final audit"
+    final_proof: "Screenshot or demo of the graph view open in Tolaria showing file nodes with relationship edges, launched from a side-menu item, interactive with pan/zoom/click."
+  intake:
+    original_request: "Add a visual links graph option to this tauri app with react source code. Research a suitable typescript library to visualize vault files as nodes and frontmatter relates-to / wikilinks as relationships. Once identified, implement it as a clickable menu option on the tolaria side menu."
+    interpreted_outcome: "A working interactive graph view in the Tolaria app, launched from the side menu, rendering vault files as nodes connected by wikilink and relates-to edges."
+    input_shape: specific
+    audience: "Tolaria users exploring their vault link structure"
+    authority: requested
+    proof_type: demo
+    completion_proof: "Interactive graph view accessible from side menu, showing file nodes with wikilink/relates-to edges, supporting pan/zoom/click-to-navigate."
+    likely_misfire: "Picking a library incompatible with Tauri/WKWebView, or building a static non-interactive view that looks like a graph but isn't useful for vault exploration."
+    blind_spots_considered:
+      - "WKWebView rendering compatibility (canvas vs SVG)"
+      - "Performance with large vaults (100s-1000s of nodes)"
+      - "Integration with existing Tolaria navigation and theming"
+      - "Bundle size impact on desktop app"
+      - "Library maintenance and TypeScript support quality"
+    existing_plan_facts:
+      - "Research library first, implement second"
+      - "Feature must be a clickable side-menu option"
+      - "Must handle wikilinks and relates-to frontmatter as relationships"
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  goal_pressure_requires_oracle: true
+  no_completion_on_weak_proof: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/visual-links-graph/"
+    command: "npx goalbuddy board docs/goals/visual-links-graph"
+
+active_task: T003
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Research TypeScript graph visualization libraries suitable for Tauri/React. Evaluate candidates against constraints: WKWebView compatibility, React integration, TypeScript support, bundle size, maintenance, interactivity (pan/zoom/click), and ability to handle 100s-1000s of nodes."
+    inputs:
+      - "Tolaria package.json (dependencies and existing stack)"
+      - "Tolaria side menu component (for integration planning)"
+      - "Tolaria vault data model (wikilinks, frontmatter relates-to)"
+      - "npm trends, bundlephobia, GitHub repos for candidate libraries"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Prefer concrete library names, version numbers, bundle sizes, and WKWebView compatibility notes."
+      - "Check Tolaria's existing dependency graph for potential conflicts."
+    expected_output:
+      - "Shortlist of 3-5 candidate libraries with pros/cons"
+      - "Bundle size comparison"
+      - "WKWebView compatibility assessment"
+      - "React wrapper availability or ease of integration"
+      - "Maintenance status (last release, issue velocity)"
+      - "Performance characteristics for 100-1000 node graphs"
+    receipt:
+      result: done
+      note: notes/T001-library-research.md
+      summary: "Recommended @xyflow/react + d3-force (~170KB total). React Flow wins on React integration (hooks, custom node components), TypeScript quality, WKWebView-safe canvas rendering, and built-in UX components (MiniMap, Controls). d3-force handles layout computation. Cytoscape (350KB) and vis-network (400KB+) are heavier and less React-idiomatic. Tolaria already has outgoingLinks[] and relationships{} on VaultEntry — data is ready."
+      evidence:
+        - "package.json — React 19, TypeScript 5.9, Tauri 2, no existing graph deps"
+        - "src/types.ts — VaultEntry has outgoingLinks: string[] and relationships: Record<string, string[]>"
+        - "src/components/sidebar/SidebarTopNav.tsx — NavItem pattern for side-menu entries"
+        - "Context7 docs — @xyflow/react 651 snippets, high reputation, v11.5.5"
+      spawned_tasks: []
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Evaluate the Scout's library shortlist and recommend the best library for Tolaria's graph view. Consider WKWebView compatibility, React integration, bundle size, maintenance, and interactive features."
+    inputs:
+      - "T001 receipt"
+    constraints:
+      - "Do not install any library."
+      - "Do not implement."
+      - "Pick the library that best balances interactive features, WKWebView compatibility, bundle size, and React integration."
+      - "Consider how the library will integrate with Tolaria's existing side menu navigation and routing."
+    expected_output:
+      - "Recommended library with version"
+      - "Justification against each constraint"
+      - "Rough implementation approach (component structure, data flow)"
+      - "Risk assessment for the implementation phase"
+    receipt:
+      result: done
+      decision: "approved"
+      full_outcome_complete: false
+      rationale: "Approved @xyflow/react + d3-force. React Flow's first-class React integration (hooks, custom node components) is the best fit for Tolaria's React 19 + shadcn/ui stack. Canvas rendering is WKWebView-safe. Bundle impact ~170KB is acceptable. Side-menu integration: add 'graph' to SidebarFilter, use NavItem with Phosphor's Graph icon in SidebarTopNav. Data is ready via VaultEntry.outgoingLinks and VaultEntry.relationships."
+      implementation_approach:
+        libraries: ["@xyflow/react", "d3-force", "@types/d3-force"]
+        components:
+          - "src/components/graph/GraphView.tsx — main graph view with ReactFlow, MiniMap, Controls, Background"
+          - "src/components/graph/GraphNode.tsx — custom React Flow node showing file title, type icon, click handler"
+          - "src/utils/graphLayout.ts — d3-force layout computation from VaultEntry[]"
+        integration:
+          - "Add 'graph' to SidebarFilter in src/types.ts"
+          - "Add NavItem in SidebarTopNav with Graph icon from Phosphor"
+          - "Handle { kind: 'filter', filter: 'graph' } in App.tsx"
+          - "Add graph view route/panel"
+        risks:
+          - "WKWebView performance with >1000 nodes — mitigate with virtualization or node limit"
+          - "d3-force can be slow to converge — use fixed iterations for deterministic layout"
+          - "Canvas rendering in Tauri may need CSS containment tweaks"
+      spawn: "Activate T003 Worker with the implementation plan above."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: medium
+    objective: "Implement the visual links graph feature in Tolaria: add the chosen library, build a graph view component that reads vault files/wikilinks/relates-to data, render an interactive graph, and add a clickable side-menu entry to open it."
+    allowed_files:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "src/components/graph/**"
+      - "src/lib/locales/en.json"
+      - "src/routes/**"
+      - "src/components/sidebar/**"
+      - "src/components/layout/**"
+    verify:
+      - "pnpm lint"
+      - "npx tsc --noEmit"
+      - "pnpm test"
+      - "pnpm test:coverage"
+      - "cargo test"
+      - "Manual QA: open graph from side menu, verify nodes/edges render, verify pan/zoom/click navigation"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Library fails in WKWebView at runtime."
+      - "Verification fails twice."
+      - "Bundle size increase exceeds 100KB gzipped."
+    receipt: null
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the graph view satisfies the original user outcome: interactive graph accessible from side menu, showing file nodes with wikilink/relates-to edges, with pan/zoom/click-to-navigate."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if the graph is not interactive."
+      - "Reject completion if the side-menu entry is missing or broken."
+      - "Reject completion if wikilinks or relates-to edges are not rendered."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []

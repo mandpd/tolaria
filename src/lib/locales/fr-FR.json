@@ -814,5 +814,7 @@
   "locale.beLatn": "Biélorusse (Latin)",
   "locale.idID": "Indonésien",
   "locale.ukUA": "Ukrainien",
-  "locale.svSE": "Suédois"
+  "locale.svSE": "Suédois",
+  "sidebar.nav.graph": "Graph",
+  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here."
 }
