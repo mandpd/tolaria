@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { GraphPanelList } from './GraphPanelList'
 import type { VaultEntry, ViewFile } from '../../types'
 
-function makeEntry(path: string, title: string, isA: string | null): VaultEntry {
+function makeEntry(path: string, title: string, isA: string | null, overrides: Partial<VaultEntry> = {}): VaultEntry {
   return {
     path, filename: path, title, isA,
     aliases: [], belongsTo: [], relatedTo: [], status: null, archived: false,
@@ -12,6 +12,7 @@ function makeEntry(path: string, title: string, isA: string | null): VaultEntry 
     template: null, sort: null, view: null, visible: null, organized: false,
     favorite: false, favoriteIndex: null, listPropertiesDisplay: [],
     outgoingLinks: [], properties: {}, hasH1: false,
+    ...overrides,
   }
 }
 
@@ -26,8 +27,8 @@ function projectsView(): ViewFile {
 }
 
 const entries = [
-  makeEntry('a.md', 'Laputa App V1', 'Project'),
-  makeEntry('b.md', 'Laputa App V2', 'Project'),
+  makeEntry('a.md', 'Laputa App V1', 'Project', { snippet: 'The first usable release.', createdAt: 1_700_000_000 }),
+  makeEntry('b.md', 'Laputa App V2', 'Project', { snippet: 'The active polish project.' }),
   makeEntry('person.md', 'Luca', 'Person'),
 ]
 
@@ -43,6 +44,14 @@ describe('GraphPanelList', () => {
     expect(screen.getByText('Laputa App V2')).toBeInTheDocument()
     // A note that does not match the view is not listed.
     expect(screen.queryByText('Luca')).not.toBeInTheDocument()
+  })
+
+  it('mirrors the note list row content: snippet and created date', () => {
+    render(
+      <GraphPanelList entries={entries} views={[projectsView()]} scope={{ kind: 'all' }} onSelectScope={() => {}} />,
+    )
+    expect(screen.getByText('The first usable release.')).toBeInTheDocument()
+    expect(screen.getByText(/^Created /)).toBeInTheDocument()
   })
 
   it('scopes the graph to a single note when its item is clicked', () => {
