@@ -6,7 +6,6 @@ belongs_to: "[[responsibility-sponsorships]]"
 owner: "[[person-luca-rossi]]"
 cadence: "As needed"
 ---
-
 # Sponsor Onboarding
 
 Turn a signed sponsor into a smooth first placement with minimal back-and-forth.
@@ -15,3 +14,4 @@ Turn a signed sponsor into a smooth first placement with minimal back-and-forth.
 - Review copy and assets.
 - Hand off recurring communication to [[person-matteo-cellini]].
 
+[[25q1-laputa-v1]]
