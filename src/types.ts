@@ -257,12 +257,12 @@ export type SidebarSelection =
 
 /**
  * Which slice of the vault the graph view should render. `all` shows the whole
- * graph; `view` restricts it to the notes (and their interconnections) matched
- * by a saved View.
+ * graph; `note` centers the graph on a single note and the notes connected to
+ * it (used when picking an individual note listed under a View).
  */
 export type GraphScope =
   | { kind: 'all' }
-  | { kind: 'view'; filename: string; rootPath?: string }
+  | { kind: 'note'; path: string }
 
 // --- Custom Views ---
 

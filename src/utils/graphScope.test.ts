@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { entriesForGraphScope, viewMatchesGraphScope, withConnectedNeighbors } from './graphScope'
-import type { VaultEntry, ViewFile } from '../types'
+import { entriesForGraphScope, withConnectedNeighbors } from './graphScope'
+import type { VaultEntry } from '../types'
 
 function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
   return {
@@ -38,34 +38,6 @@ function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
   }
 }
 
-function makeView(overrides: Partial<ViewFile> = {}): ViewFile {
-  return {
-    filename: 'people.yml',
-    definition: {
-      name: 'People',
-      icon: null,
-      color: null,
-      sort: null,
-      filters: { all: [{ field: 'type', op: 'equals', value: 'Person' }] },
-    },
-    ...overrides,
-  }
-}
-
-describe('viewMatchesGraphScope', () => {
-  it('matches on filename and rootPath', () => {
-    const view = makeView({ filename: 'a.yml', rootPath: '/vault' })
-    expect(viewMatchesGraphScope(view, { kind: 'view', filename: 'a.yml', rootPath: '/vault' })).toBe(true)
-    expect(viewMatchesGraphScope(view, { kind: 'view', filename: 'a.yml' })).toBe(false)
-    expect(viewMatchesGraphScope(view, { kind: 'view', filename: 'b.yml', rootPath: '/vault' })).toBe(false)
-  })
-
-  it('treats missing rootPath as undefined on both sides', () => {
-    const view = makeView({ filename: 'a.yml' })
-    expect(viewMatchesGraphScope(view, { kind: 'view', filename: 'a.yml' })).toBe(true)
-  })
-})
-
 describe('withConnectedNeighbors', () => {
   const project = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project', outgoingLinks: ['owner'] })
   const owner = makeEntry({ path: 'owner.md', filename: 'owner.md', title: 'Owner', isA: 'Person' })
@@ -90,34 +62,21 @@ describe('withConnectedNeighbors', () => {
 
 describe('entriesForGraphScope', () => {
   const person = makeEntry({ path: 'p.md', filename: 'p.md', title: 'Matteo', isA: 'Person' })
-  const project = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project' })
+  const project = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project', outgoingLinks: ['p'] })
 
   it('returns every entry for the "all" scope', () => {
-    const result = entriesForGraphScope({ kind: 'all' }, [person, project], [])
+    const result = entriesForGraphScope({ kind: 'all' }, [person, project])
     expect(result).toEqual([person, project])
   })
 
-  it('returns the matched note plus its connected neighbors for a "view" scope', () => {
-    const projectWithOwner = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project', outgoingLinks: ['p'] })
-    const view = makeView({
-      filename: 'projects.yml',
-      definition: { name: 'Projects', icon: null, color: null, sort: null, filters: { all: [{ field: 'type', op: 'equals', value: 'Project' }] } },
-    })
-    const result = entriesForGraphScope(
-      { kind: 'view', filename: 'projects.yml' },
-      [person, projectWithOwner],
-      [view],
-    )
-    // The Project note matches the view; the linked Person is pulled in as a neighbor.
+  it('returns the chosen note plus its connected neighbors for a "note" scope', () => {
+    const result = entriesForGraphScope({ kind: 'note', path: 'proj.md' }, [person, project])
+    // The Project note is the seed; the linked Person is pulled in as a neighbor.
     expect(result.map((e) => e.path).sort()).toEqual(['p.md', 'proj.md'])
   })
 
-  it('returns an empty list when the view cannot be found', () => {
-    const result = entriesForGraphScope(
-      { kind: 'view', filename: 'missing.yml' },
-      [person, project],
-      [makeView()],
-    )
+  it('returns an empty list when the note cannot be found', () => {
+    const result = entriesForGraphScope({ kind: 'note', path: 'missing.md' }, [person, project])
     expect(result).toEqual([])
   })
 })

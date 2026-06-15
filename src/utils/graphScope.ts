@@ -1,15 +1,5 @@
-import type { GraphScope, VaultEntry, ViewFile } from '../types'
-import { filterEntriesForViewFile } from './noteListHelpers'
+import type { GraphScope, VaultEntry } from '../types'
 import { resolveEntry, wikilinkTarget } from './wikilink'
-
-/** True when a saved View is the one referenced by a `view` graph scope. */
-export function viewMatchesGraphScope(
-  view: ViewFile,
-  scope: Extract<GraphScope, { kind: 'view' }>,
-): boolean {
-  return view.filename === scope.filename
-    && (view.rootPath ?? undefined) === (scope.rootPath ?? undefined)
-}
 
 /** Every wikilink/relationship target an entry points at, as plain targets. */
 function entryLinkTargets(entry: VaultEntry): string[] {
@@ -54,18 +44,13 @@ export function withConnectedNeighbors(seed: VaultEntry[], allEntries: VaultEntr
 
 /**
  * Resolve the entries the graph should render for a given scope. `all` returns
- * every entry; `view` returns the entries matched by that View plus the notes
- * directly connected to them, so the graph shows each project together with the
- * notes it relates to rather than isolated nodes. An unknown View resolves to
- * an empty graph.
+ * every entry; `note` returns the chosen note plus the notes directly connected
+ * to it, so the graph is centered on that note rather than the whole vault. A
+ * missing note resolves to an empty graph.
  */
-export function entriesForGraphScope(
-  scope: GraphScope,
-  entries: VaultEntry[],
-  views: ViewFile[],
-): VaultEntry[] {
+export function entriesForGraphScope(scope: GraphScope, entries: VaultEntry[]): VaultEntry[] {
   if (scope.kind === 'all') return entries
-  const view = views.find((candidate) => viewMatchesGraphScope(candidate, scope))
-  if (!view) return []
-  return withConnectedNeighbors(filterEntriesForViewFile(entries, view), entries)
+  const note = entries.find((entry) => entry.path === scope.path)
+  if (!note) return []
+  return withConnectedNeighbors([note], entries)
 }

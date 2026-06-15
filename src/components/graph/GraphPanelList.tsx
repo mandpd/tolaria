@@ -1,12 +1,13 @@
-import { Graph, Funnel } from '@phosphor-icons/react'
-import type { GraphScope, ViewFile } from '../../types'
+import { Graph } from '@phosphor-icons/react'
+import type { GraphScope, VaultEntry, ViewFile } from '../../types'
 import { Button } from '../ui/button'
 import { cn } from '@/lib/utils'
 import { NoteTitleIcon } from '../NoteTitleIcon'
-import { viewMatchesGraphScope } from '../../utils/graphScope'
+import { filterEntriesForViewFile } from '../../utils/noteListHelpers'
 import { translate, type AppLocale } from '../../lib/i18n'
 
 interface GraphPanelListProps {
+  entries: VaultEntry[]
   views: ViewFile[]
   scope: GraphScope
   onSelectScope: (scope: GraphScope) => void
@@ -20,11 +21,56 @@ function rowClassName(isActive: boolean): string {
   )
 }
 
-function viewRowKey(view: ViewFile): string {
-  return `${view.rootPath ?? ''}:${view.filename}`
+function GraphNoteItem({
+  note,
+  icon,
+  isActive,
+  onSelect,
+}: {
+  note: VaultEntry
+  icon: string | null
+  isActive: boolean
+  onSelect: () => void
+}) {
+  return (
+    <Button type="button" variant="ghost" size="sm" className={rowClassName(isActive)} onClick={onSelect}>
+      <NoteTitleIcon icon={icon} size={16} />
+      <span className="truncate">{note.title || note.filename}</span>
+    </Button>
+  )
 }
 
-export function GraphPanelList({ views, scope, onSelectScope, locale = 'en' }: GraphPanelListProps) {
+function GraphViewGroup({
+  view,
+  notes,
+  scope,
+  onSelectScope,
+}: {
+  view: ViewFile
+  notes: VaultEntry[]
+  scope: GraphScope
+  onSelectScope: (scope: GraphScope) => void
+}) {
+  if (notes.length === 0) return null
+  return (
+    <div className="mt-2">
+      <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {view.definition.name}
+      </div>
+      {notes.map((note) => (
+        <GraphNoteItem
+          key={note.path}
+          note={note}
+          icon={view.definition.icon}
+          isActive={scope.kind === 'note' && scope.path === note.path}
+          onSelect={() => onSelectScope({ kind: 'note', path: note.path })}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function GraphPanelList({ entries, views, scope, onSelectScope, locale = 'en' }: GraphPanelListProps) {
   const allActive = scope.kind === 'all'
   return (
     <div className="flex h-full flex-col" data-testid="graph-panel-list">
@@ -42,24 +88,15 @@ export function GraphPanelList({ views, scope, onSelectScope, locale = 'en' }: G
           <Graph size={16} weight={allActive ? 'fill' : 'regular'} />
           <span className="truncate font-medium">{translate(locale, 'graph.scope.all')}</span>
         </Button>
-        {views.map((view) => {
-          const isActive = scope.kind === 'view' && viewMatchesGraphScope(view, scope)
-          return (
-            <Button
-              key={viewRowKey(view)}
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={rowClassName(isActive)}
-              onClick={() => onSelectScope({ kind: 'view', filename: view.filename, rootPath: view.rootPath })}
-            >
-              {view.definition.icon
-                ? <NoteTitleIcon icon={view.definition.icon} size={16} />
-                : <Funnel size={16} weight={isActive ? 'fill' : 'regular'} />}
-              <span className="truncate">{view.definition.name}</span>
-            </Button>
-          )
-        })}
+        {views.map((view) => (
+          <GraphViewGroup
+            key={`${view.rootPath ?? ''}:${view.filename}`}
+            view={view}
+            notes={filterEntriesForViewFile(entries, view)}
+            scope={scope}
+            onSelectScope={onSelectScope}
+          />
+        ))}
       </div>
     </div>
   )
