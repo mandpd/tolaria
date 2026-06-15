@@ -4,6 +4,8 @@ import {
   forceManyBody,
   forceCenter,
   forceCollide,
+  forceX,
+  forceY,
   type SimulationNodeDatum,
 } from 'd3-force'
 import type { VaultEntry } from '../types'
@@ -152,6 +154,10 @@ export function computeLayout(
     )
     .force('charge', forceManyBody().strength(-300))
     .force('center', forceCenter(0, 0))
+    // Pull every node gently toward the origin so disconnected notes stay near
+    // the cluster instead of drifting to the edges; collision keeps them apart.
+    .force('x', forceX(0).strength(0.08))
+    .force('y', forceY(0).strength(0.08))
     .force('collide', forceCollide(NODE_WIDTH / 2 + 20))
     .stop()
 

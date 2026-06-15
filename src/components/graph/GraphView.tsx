@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -8,6 +8,8 @@ import {
   BackgroundVariant,
   useNodesState,
   useEdgesState,
+  useNodesInitialized,
+  useReactFlow,
   type Node,
   type Edge,
 } from '@xyflow/react'
@@ -19,6 +21,23 @@ import { translate, type AppLocale } from '../../lib/i18n'
 
 const nodeTypes = {
   'graph-node': GraphNode,
+}
+
+const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.5 }
+
+/**
+ * Fits the viewport to the graph once React Flow has measured the custom nodes.
+ * The `fitView` prop only runs on the very first render — before our nodes have
+ * dimensions — so it leaves the graph tiny and off-center. Refitting when
+ * `useNodesInitialized` flips true centers and scales it correctly.
+ */
+function FitViewOnReady() {
+  const nodesInitialized = useNodesInitialized()
+  const { fitView } = useReactFlow()
+  useEffect(() => {
+    if (nodesInitialized) void fitView(FIT_VIEW_OPTIONS)
+  }, [nodesInitialized, fitView])
+  return null
 }
 
 interface GraphViewProps {
@@ -92,8 +111,6 @@ function GraphCanvas({ graph, onNodeSelect }: { graph: GraphData; onNodeSelect: 
     [onNodeSelect],
   )
 
-  const fitViewOptions = useMemo(() => ({ padding: 0.2, maxZoom: 1.5 }), [])
-
   return (
     <div ref={containerRef} className="h-full w-full">
       <ReactFlowProvider>
@@ -105,7 +122,7 @@ function GraphCanvas({ graph, onNodeSelect }: { graph: GraphData; onNodeSelect: 
           onNodeClick={handleNodeClick}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={fitViewOptions}
+          fitViewOptions={FIT_VIEW_OPTIONS}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={true}
@@ -115,6 +132,7 @@ function GraphCanvas({ graph, onNodeSelect }: { graph: GraphData; onNodeSelect: 
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
+          <FitViewOnReady />
           <MiniMap
             nodeColor={(node) => {
               const data = node.data as GraphNodeType['data'] | undefined
