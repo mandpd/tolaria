@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { VaultEntry } from '../../types'
-import { buildGraphData, computeLayout } from '../../utils/graphLayout'
+import { buildGraphData, computeLayout, type GraphData } from '../../utils/graphLayout'
 import { GraphNode, type GraphNodeType } from './GraphNode'
 import { translate, type AppLocale } from '../../lib/i18n'
 
@@ -27,21 +27,27 @@ interface GraphViewProps {
   locale?: AppLocale
 }
 
-export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps) {
+function edgeStyle(kind: GraphData['edges'][number]['kind']): React.CSSProperties {
+  return {
+    stroke:
+      kind === 'relates-to'
+        ? 'var(--muted-foreground)'
+        : kind === 'relationship'
+          ? 'var(--border)'
+          : 'var(--primary)',
+    strokeWidth: kind === 'wikilink' ? 1.5 : 1,
+    strokeDasharray: kind === 'relationship' ? '4 2' : undefined,
+  }
+}
+
+/**
+ * Renders one React Flow canvas for a fixed graph. `useNodesState`/`useEdgesState`
+ * only read their argument as the initial value, so this component is remounted
+ * (via a `key` on the graph signature) whenever the graph changes — that resets
+ * the node/edge state to the new layout instead of leaving the previous one.
+ */
+function GraphCanvas({ graph, onNodeSelect }: { graph: GraphData; onNodeSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const entryMapRef = useRef<Map<string, VaultEntry>>(new Map())
-
-  // Keep entry map in sync
-  useEffect(() => {
-    const map = new Map<string, VaultEntry>()
-    for (const e of entries) {
-      map.set(e.path, e)
-    }
-    entryMapRef.current = map
-  }, [entries])
-
-  const graph = useMemo(() => buildGraphData(entries), [entries])
-
   const layout = useMemo(() => computeLayout(graph.nodes, graph.edges), [graph])
 
   const initialNodes: Node[] = useMemo(
@@ -72,16 +78,7 @@ export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps
         source: ge.source,
         target: ge.target,
         animated: false,
-        style: {
-          stroke:
-            ge.kind === 'relates-to'
-              ? 'var(--muted-foreground)'
-              : ge.kind === 'relationship'
-                ? 'var(--border)'
-                : 'var(--primary)',
-          strokeWidth: ge.kind === 'wikilink' ? 1.5 : 1,
-          strokeDasharray: ge.kind === 'relationship' ? '4 2' : undefined,
-        },
+        style: edgeStyle(ge.kind),
         data: { kind: ge.kind },
       })),
     [graph.edges],
@@ -91,27 +88,11 @@ export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)
 
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      const entry = entryMapRef.current.get(node.id)
-      if (entry) {
-        onNavigate(entry)
-      }
-    },
-    [onNavigate],
+    (_event: React.MouseEvent, node: Node) => onNodeSelect(node.id),
+    [onNodeSelect],
   )
 
-  const fitViewOptions = useMemo(
-    () => ({ padding: 0.2, maxZoom: 1.5 }),
-    [],
-  )
-
-  if (graph.nodes.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p>{translate(locale, 'sidebar.graph.empty')}</p>
-      </div>
-    )
-  }
+  const fitViewOptions = useMemo(() => ({ padding: 0.2, maxZoom: 1.5 }), [])
 
   return (
     <div ref={containerRef} className="h-full w-full">
@@ -142,17 +123,41 @@ export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps
             maskColor="var(--background, #fff)"
             style={{ background: 'var(--card)' }}
           />
-          <Controls
-            className="!rounded-md !border !border-border !bg-card !text-foreground"
-          />
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="var(--border)"
-          />
+          <Controls className="!rounded-md !border !border-border !bg-card !text-foreground" />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
         </ReactFlow>
       </ReactFlowProvider>
     </div>
   )
+}
+
+export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps) {
+  const graph = useMemo(() => buildGraphData(entries), [entries])
+  const entryByPath = useMemo(() => {
+    const map = new Map<string, VaultEntry>()
+    for (const entry of entries) map.set(entry.path, entry)
+    return map
+  }, [entries])
+
+  const handleNodeSelect = useCallback(
+    (id: string) => {
+      const entry = entryByPath.get(id)
+      if (entry) onNavigate(entry)
+    },
+    [entryByPath, onNavigate],
+  )
+
+  // Signature of the rendered node set. Changing it remounts GraphCanvas so its
+  // node/edge state re-initializes when the graph scope (or vault) changes.
+  const signature = useMemo(() => graph.nodes.map((node) => node.id).join('|'), [graph])
+
+  if (graph.nodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <p>{translate(locale, 'sidebar.graph.empty')}</p>
+      </div>
+    )
+  }
+
+  return <GraphCanvas key={signature} graph={graph} onNodeSelect={handleNodeSelect} />
 }
