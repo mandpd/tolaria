@@ -12,9 +12,8 @@ import {
   type Edge,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, type SimulationNodeDatum } from 'd3-force'
 import type { VaultEntry } from '../../types'
-import { buildGraphData } from '../../utils/graphLayout'
+import { buildGraphData, computeLayout } from '../../utils/graphLayout'
 import { GraphNode, type GraphNodeType } from './GraphNode'
 import { translate, type AppLocale } from '../../lib/i18n'
 
@@ -26,53 +25,6 @@ interface GraphViewProps {
   entries: VaultEntry[]
   onNavigate: (entry: VaultEntry) => void
   locale?: AppLocale
-}
-
-const FORCE_ITERATIONS = 100
-const NODE_WIDTH = 150
-
-interface SimNode extends SimulationNodeDatum {
-  id: string
-}
-
-function computeLayout(
-  graphNodes: { id: string }[],
-  graphEdges: { source: string; target: string }[],
-) {
-  const nodes: SimNode[] = graphNodes.map((n) => ({ ...n, x: 0, y: 0 }))
-
-  const sim = forceSimulation(nodes)
-    .force(
-      'link',
-      forceLink<SimNode, typeof graphEdges[number]>(graphEdges)
-        .id((d) => d.id)
-        .distance(120),
-    )
-    .force('charge', forceManyBody().strength(-300))
-    .force('center', forceCenter(0, 0))
-    .force('collide', forceCollide(NODE_WIDTH / 2 + 20))
-    .stop()
-
-  for (let i = 0; i < FORCE_ITERATIONS; i++) {
-    sim.tick()
-  }
-
-  // Center the layout
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-  for (const n of nodes) {
-    if (n.x! < minX) minX = n.x!
-    if (n.x! > maxX) maxX = n.x!
-    if (n.y! < minY) minY = n.y!
-    if (n.y! > maxY) maxY = n.y!
-  }
-
-  const offsetX = (maxX + minX) / 2
-  const offsetY = (maxY + minY) / 2
-
-  return nodes.map((n) => ({
-    id: n.id,
-    position: { x: n.x! - offsetX, y: n.y! - offsetY },
-  }))
 }
 
 export function GraphView({ entries, onNavigate, locale = 'en' }: GraphViewProps) {

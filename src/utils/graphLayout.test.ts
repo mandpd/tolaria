@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildGraphData, pathLabel } from './graphLayout'
+import { buildGraphData, computeLayout, pathLabel } from './graphLayout'
 import type { VaultEntry } from '../types'
 
 function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
@@ -206,5 +206,34 @@ describe('buildGraphData', () => {
       icon: 'user',
       color: 'blue',
     })
+  })
+})
+
+describe('computeLayout', () => {
+  it('returns a finite position for every node', () => {
+    const nodes = [{ id: 'a.md' }, { id: 'b.md' }]
+    const edges = [{ source: 'a.md', target: 'b.md' }]
+
+    const layout = computeLayout(nodes, edges)
+
+    expect(layout.map((l) => l.id).sort()).toEqual(['a.md', 'b.md'])
+    for (const l of layout) {
+      expect(Number.isFinite(l.position.x)).toBe(true)
+      expect(Number.isFinite(l.position.y)).toBe(true)
+    }
+  })
+
+  it('does not mutate the input edges so React Flow keeps string source/target ids', () => {
+    // d3-force's forceLink replaces each link's string source/target with the
+    // resolved node object during initialization. If it mutates the shared edge
+    // objects, React Flow receives objects instead of string ids and renders no
+    // edges. computeLayout must operate on copies and leave the input untouched.
+    const nodes = [{ id: 'a.md' }, { id: 'b.md' }]
+    const edges = [{ source: 'a.md', target: 'b.md' }]
+
+    computeLayout(nodes, edges)
+
+    expect(edges[0].source).toBe('a.md')
+    expect(edges[0].target).toBe('b.md')
   })
 })
