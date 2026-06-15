@@ -12,6 +12,8 @@ import { Toast } from './components/Toast'
 import { CommitDialog } from './components/CommitDialog'
 import { PulseView } from './components/PulseView'
 import { GraphView } from './components/graph/GraphView'
+import { GraphPanelList } from './components/graph/GraphPanelList'
+import { entriesForGraphScope, viewMatchesGraphScope } from './utils/graphScope'
 import { StatusBar } from './components/StatusBar'
 import { AppAiWorkspaceSurface } from './components/AppAiWorkspaceSurface'
 import { AiWorkspaceFloatingButton } from './components/AiWorkspaceFloatingButton'
@@ -76,7 +78,7 @@ import { DeleteProgressNotice } from './components/DeleteProgressNotice'
 import { UpdateBanner } from './components/UpdateBanner'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from './mock-tauri'
-import type { AiWorkspaceConversationSetting, GitSetupPreference, SidebarSelection, InboxPeriod, VaultEntry, WorkspaceIdentity } from './types'
+import type { AiWorkspaceConversationSetting, GitSetupPreference, GraphScope, SidebarSelection, InboxPeriod, VaultEntry, WorkspaceIdentity } from './types'
 import { initializeNoteProperties } from './utils/initializeNoteProperties'
 import { type NoteListFilter } from './utils/noteListHelpers'
 import { openNoteInNewWindow } from './utils/openNoteWindow'
@@ -164,6 +166,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const aiWorkspaceWindow = false
   const [selection, setSelection] = useState<SidebarSelection>(DEFAULT_SELECTION)
   const [noteListFilter, setNoteListFilter] = useState<NoteListFilter>('open')
+  const [graphScope, setGraphScope] = useState<GraphScope>({ kind: 'all' })
   const [pendingNoteListPdfExportPath, setPendingNoteListPdfExportPath] = useState<string | null>(null)
   const selectionRef = useRef<SidebarSelection>(DEFAULT_SELECTION)
   const neighborhoodHistoryRef = useRef<SidebarSelection[]>([])
@@ -372,6 +375,18 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const explicitOrganizationEnabled = isExplicitOrganizationEnabled(vaultConfig.inbox?.explicitOrganization)
   const effectiveSelection = sanitizeSelectionForOrganization(selection, vaultConfig.inbox?.explicitOrganization)
   const isChangesSelection = effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'changes'
+  const isGraphSelection = effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'graph'
+  // Fall back to the whole graph when the scoped View has been deleted or renamed.
+  const effectiveGraphScope: GraphScope = useMemo(
+    () => (graphScope.kind === 'view' && !vault.views.some((view) => viewMatchesGraphScope(view, graphScope))
+      ? { kind: 'all' }
+      : graphScope),
+    [graphScope, vault.views],
+  )
+  const graphScopeEntries = useMemo(
+    () => entriesForGraphScope(effectiveGraphScope, visibleEntries, vault.views),
+    [effectiveGraphScope, visibleEntries, vault.views],
+  )
 
   useSelectionSanitizer({
     effectiveSelection,
@@ -529,6 +544,12 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   } = notes
   const noteActiveTabPath = notes.activeTabPath
   const noteActiveTabPathRef = notes.activeTabPathRef
+  // The graph renders in the editor panel, so clicking a node leaves graph mode
+  // and opens that note in the all-notes view.
+  const handleGraphNodeNavigate = useCallback((entry: VaultEntry) => {
+    handleSetSelection({ kind: 'filter', filter: 'all' })
+    void handleSelectNote(entry)
+  }, [handleSetSelection, handleSelectNote])
   const refocusActiveEditor = useCallback((path: string) => {
     window.dispatchEvent(new CustomEvent('laputa:focus-editor', { detail: { path } }))
   }, [])
@@ -1612,8 +1633,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               <div className={`app__note-list${aiActivity.highlightElement === 'notelist' ? ' ai-highlight' : ''}`} style={{ width: layout.noteListWidth }}>
                 {effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'pulse' ? (
                   <PulseView vaultPath={gitSurfaces.historyRepositoryPath} onOpenNote={handlePulseOpenNote} refreshKey={gitHistoryRefreshKey} sidebarCollapsed={!sidebarVisible} onExpandSidebar={() => handleSetViewMode('all')} repositories={gitRepositories} selectedRepositoryPath={gitSurfaces.historyRepositoryPath} onRepositoryChange={gitSurfaces.setHistoryRepositoryPath} locale={appLocale} />
-                ) : effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'graph' ? (
-                  <GraphView entries={visibleEntries} onNavigate={notes.handleSelectNote} locale={appLocale} />
+                ) : isGraphSelection ? (
+                  <GraphPanelList views={vault.views} scope={effectiveGraphScope} onSelectScope={setGraphScope} locale={appLocale} />
                 ) : (
                   <NoteList entries={visibleEntries} selection={effectiveSelection} selectedNote={activeTab?.entry ?? null} loading={isVaultContentLoading} noteListFilter={noteListFilter} onNoteListFilterChange={setNoteListFilter} inboxPeriod={inboxPeriod} modifiedFiles={noteListModifiedFiles} modifiedFilesError={noteListModifiedFilesError} gitRepositories={gitRepositories} selectedGitRepositoryPath={gitSurfaces.changesRepositoryPath} onGitRepositoryChange={gitSurfaces.setChangesRepositoryPath} getNoteStatus={vault.getNoteStatus} sidebarCollapsed={!sidebarVisible} onSelectNote={notes.handleSelectNote} onReplaceActiveTab={handleReplaceActiveTabWithQueuedDiff} onEnterNeighborhood={handleEnterNeighborhood} onCreateNote={notes.handleCreateNoteImmediate} onBulkOrganize={explicitOrganizationEnabled ? bulkActions.handleBulkOrganize : undefined} onBulkArchive={bulkActions.handleBulkArchive} onBulkDeletePermanently={deleteActions.handleBulkDeletePermanently} onUpdateTypeSort={notes.handleUpdateFrontmatter} onUpdateViewDefinition={handleUpdateViewDefinition} updateEntry={vault.updateEntry} onOpenInNewWindow={handleOpenEntryInNewWindow} onExportPdf={handleExportNotePdfFromList} onToggleFavorite={entryActions.handleToggleFavorite} onToggleOrganized={explicitOrganizationEnabled ? entryActions.handleToggleOrganized : undefined} onRevealFile={fileActions.revealFile} onCopyFilePath={fileActions.copyFilePath} canCopyGitUrl={noteGitUrls.canCopyEntryGitUrl} onCopyGitUrl={noteGitUrls.copyEntryGitUrl} onDiscardFile={handleDiscardFile} onOpenDeletedNote={handleOpenDeletedNote} allNotesNoteListProperties={vaultConfig.allNotes?.noteListProperties ?? null} onUpdateAllNotesNoteListProperties={handleUpdateAllNotesNoteListProperties} inboxNoteListProperties={vaultConfig.inbox?.noteListProperties ?? null} onUpdateInboxNoteListProperties={handleUpdateInboxNoteListProperties} views={vault.views} visibleNotesRef={visibleNotesRef} allNotesFileVisibility={allNotesFileVisibility} multiSelectionCommandRef={multiSelectionCommandRef} locale={appLocale} />
                 )}
@@ -1622,6 +1643,9 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
             </>
           )}
           <div className={`app__editor${aiActivity.highlightElement === 'editor' || aiActivity.highlightElement === 'tab' ? ' ai-highlight' : ''}`}>
+            {isGraphSelection ? (
+              <GraphView entries={graphScopeEntries} onNavigate={handleGraphNodeNavigate} locale={appLocale} />
+            ) : (
             <Editor
               tabs={notes.tabs}
               activeTabPath={notes.activeTabPath}
@@ -1698,6 +1722,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               onToast={setToastMessage}
               locale={appLocale}
             />
+            )}
           </div>
         </div>
         <UpdateBanner status={updateStatus} actions={updateActions} locale={appLocale} />

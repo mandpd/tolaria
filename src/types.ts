@@ -255,6 +255,15 @@ export type SidebarSelection =
   | { kind: 'entity'; entry: VaultEntry }
   | { kind: 'view'; filename: string; rootPath?: string }
 
+/**
+ * Which slice of the vault the graph view should render. `all` shows the whole
+ * graph; `view` restricts it to the notes (and their interconnections) matched
+ * by a saved View.
+ */
+export type GraphScope =
+  | { kind: 'all' }
+  | { kind: 'view'; filename: string; rootPath?: string }
+
 // --- Custom Views ---
 
 export type FilterOp = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'any_of' | 'none_of' | 'is_empty' | 'is_not_empty' | 'before' | 'after'

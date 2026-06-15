@@ -816,5 +816,7 @@
   "locale.ukUA": "烏克蘭語",
   "locale.svSE": "瑞典語",
   "sidebar.nav.graph": "Graph",
-  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here."
+  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here.",
+  "graph.scope.all": "All",
+  "graph.scope.title": "Graph"
 }

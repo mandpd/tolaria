@@ -816,5 +816,7 @@
   "locale.ukUA": "Ukraiński",
   "locale.svSE": "Szwedzki",
   "sidebar.nav.graph": "Graph",
-  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here."
+  "sidebar.graph.empty": "No notes with links to display. Add wikilinks or relates-to relationships to see them here.",
+  "graph.scope.all": "All",
+  "graph.scope.title": "Graph"
 }
