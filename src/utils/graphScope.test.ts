@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { entriesForGraphScope, viewMatchesGraphScope } from './graphScope'
+import { entriesForGraphScope, viewMatchesGraphScope, withConnectedNeighbors } from './graphScope'
 import type { VaultEntry, ViewFile } from '../types'
 
 function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
@@ -66,6 +66,28 @@ describe('viewMatchesGraphScope', () => {
   })
 })
 
+describe('withConnectedNeighbors', () => {
+  const project = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project', outgoingLinks: ['owner'] })
+  const owner = makeEntry({ path: 'owner.md', filename: 'owner.md', title: 'Owner', isA: 'Person' })
+  const child = makeEntry({ path: 'child.md', filename: 'child.md', title: 'Child', belongsTo: ['[[proj]]'] })
+  const unrelated = makeEntry({ path: 'misc.md', filename: 'misc.md', title: 'Misc' })
+
+  it('adds notes the seed links out to', () => {
+    const result = withConnectedNeighbors([project], [project, owner, unrelated])
+    expect(result.map((e) => e.path).sort()).toEqual(['owner.md', 'proj.md'])
+  })
+
+  it('adds notes that link into the seed', () => {
+    const result = withConnectedNeighbors([project], [project, child, unrelated])
+    expect(result.map((e) => e.path).sort()).toEqual(['child.md', 'proj.md'])
+  })
+
+  it('leaves a seed with no connections unchanged', () => {
+    const result = withConnectedNeighbors([unrelated], [project, owner, unrelated])
+    expect(result).toEqual([unrelated])
+  })
+})
+
 describe('entriesForGraphScope', () => {
   const person = makeEntry({ path: 'p.md', filename: 'p.md', title: 'Matteo', isA: 'Person' })
   const project = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project' })
@@ -75,14 +97,19 @@ describe('entriesForGraphScope', () => {
     expect(result).toEqual([person, project])
   })
 
-  it('returns only the matching entries for a "view" scope', () => {
-    const view = makeView()
+  it('returns the matched note plus its connected neighbors for a "view" scope', () => {
+    const projectWithOwner = makeEntry({ path: 'proj.md', filename: 'proj.md', title: 'Laputa', isA: 'Project', outgoingLinks: ['p'] })
+    const view = makeView({
+      filename: 'projects.yml',
+      definition: { name: 'Projects', icon: null, color: null, sort: null, filters: { all: [{ field: 'type', op: 'equals', value: 'Project' }] } },
+    })
     const result = entriesForGraphScope(
-      { kind: 'view', filename: 'people.yml' },
-      [person, project],
+      { kind: 'view', filename: 'projects.yml' },
+      [person, projectWithOwner],
       [view],
     )
-    expect(result).toEqual([person])
+    // The Project note matches the view; the linked Person is pulled in as a neighbor.
+    expect(result.map((e) => e.path).sort()).toEqual(['p.md', 'proj.md'])
   })
 
   it('returns an empty list when the view cannot be found', () => {
